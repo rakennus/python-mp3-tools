@@ -1,0 +1,2 @@
+yt-dlp --flat-playlist --print-to-file "%(id)s" archive.txt ""
+yt-dlp -o "%(title)s" -x --embed-thumbnail --audio-format mp3 --embed-metadata ""
