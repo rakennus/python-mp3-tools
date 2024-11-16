@@ -2,13 +2,18 @@ import json
 import yt_dlp
 import requests
 import sys
-
 import os
 import eyed3
 
+from PIL import Image
+from io import BytesIO
+
+from mutagen.mp3 import MP3
+from mutagen.id3 import ID3, APIC, TRCK, error
+
 URL = sys.argv[1]
 
-# yt-dlp -o "%(playlist_index)s %(title)s" -x --embed-thumbnail --audio-format mp3 --embed-metadata ""
+cover_image_data = b''
 
 ydl_opts = {
         'outtmpl': 'Music/%(uploader)s/%(playlist_title)s/%(playlist_index)s %(title)s',
@@ -21,26 +26,20 @@ ydl_opts = {
 
 
 def add_metadata_to_mp3(mp3_file_path, index, artist=None, album=None, track_number=None, artwork=None):
-    audiofile = eyed3.load(mp3_file_path)
+    print(mp3_file_path)
 
-    audiofile.tag.title = info['entries'][index]['title']
+    # Load the audio file using mutagen.
+    audio = MP3(mp3_file_path, ID3=ID3)
+    tags = ID3(mp3_file_path)
 
-    if artist:
-        audiofile.tag.artist = artist
-    if album:
-        audiofile.tag.album = album
-  
-    file_name = os.path.basename(mp3_file_path)
-    words = file_name.split()
-    if words:
-        audiofile.tag.track_num = int(words[0])
-    else:
-        return None  # Return None if the file name is empty or doesn't contain any words
+    image_bytearray = cover_image_data
 
-    if artwork:
-        audiofile.tag.images.set(3, open(artwork, 'rb').read(), 'image/jpg')
+    audio.tags.delall("APIC") # Delete every APIC tag (Cover art)
+    audio.tags.add(APIC(mime='image/png',type=3,desc=u'Front cover',data=image_bytearray))
 
-    audiofile.tag.save()
+    audio['TRCK'] = TRCK(encoding=3, text=str())
+
+    audio.save()  # save the current changes
 
 def add_metadata_to_mp3_files_in_directory(album_directory, metadata_dict):
     # Get a list of filenames in the folder
@@ -63,13 +62,9 @@ with yt_dlp.YoutubeDL(ydl_opts) as ydl:
     with open(album_directory + info['title'] + '.json', 'w') as fp:
         json.dump(info, fp)
 
-    url = info['thumbnails'][1]['url']
-    save_path = album_directory + "cover.jpg"
-
-    response = requests.get(url)
+    response = requests.get(info['thumbnails'][1]['url'])
     if response.status_code == 200:
-        with open(save_path, 'wb') as file:
-            file.write(response.content)
+        cover_image_data = response.content
     else:
         print(f"Failed to download image. Status code: {response.status_code}")
 
