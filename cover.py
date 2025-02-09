@@ -1,4 +1,5 @@
 import os, sys
+import fnmatch
 
 from PIL import Image
 from io import BytesIO
@@ -50,4 +51,4 @@ if(len(sys.argv) > 1):
         for file in fnmatch.filter(files, '*.mp3'):
             mp3_files.append(os.path.join(root, file))
 
-    cover.make_square(mp3_files)
+    make_square(mp3_files)
